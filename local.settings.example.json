@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "COSMOS_URL": "https://YOUR-ACCOUNT.documents.azure.com:443/",
+    "COSMOS_KEY": "REPLACE_ME",
+    "COSMOS_DB": "predictiveops",
+    "COSMOS_CONTAINER": "riskEvents",
+    "RISK_THRESHOLD": "0.75",
+    "WEBHOOK_RESTART": "https://YOUR-WEBHOOK-URL"
+  }
+}
