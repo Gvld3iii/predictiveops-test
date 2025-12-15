@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LifeTechnologies • PredictiveOps Risk Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root{
+      --bg:#050814;
+      --bg2:#070b1c;
+      --card:#0b1024;
+      --text:#f5f7ff;
+      --muted:#a7afc7;
+      --border:#191f38;
+
+      --aws:#4f9cff;
+      --azure:#0078d4;
+      --gcp:#ff8c3a;
+
+      --good:#6cf2b8;
+      --warn:#ffcc66;
+      --bad:#ff4f7b;
+
+      --soft: rgba(79,156,255,0.14);
+      --shadow: 0 18px 40px rgba(0,0,0,0.45);
+      --glow: 0 0 50px rgba(79,156,255,0.40);
+      --radius:18px;
+      --pill:999px;
+
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:var(--font);
+      background: radial-gradient(circle at top, #11152a 0, #050814 55%, #02030a 100%);
+      color:var(--text);
+      line-height:1.6;
+    }
+
+    body:before{
+      content:"";
+      position:fixed; inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      opacity:0.25;
+      pointer-events:none;
+      mask-image: radial-gradient(circle at 50% 0%, black 0, black 30%, transparent 70%);
+    }
+
+    header{
+      position:sticky; top:0; z-index:50;
+      border-bottom:1px solid rgba(255,255,255,0.04);
+      backdrop-filter: blur(16px);
+      background: linear-gradient(to bottom, rgba(5,8,20,0.95), rgba(5,8,20,0.85), transparent);
+    }
+
+    .nav{
+      max-width:1180px;
+      margin:0 auto;
+      padding:14px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+
+    .logo{display:flex;align-items:center;gap:10px}
+    .logoMark{
+      width:34px; height:34px; border-radius:12px;
+      background: conic-gradient(from 190deg, var(--aws), #7b60ff, var(--gcp), var(--aws));
+      box-shadow: var(--glow);
+      position:relative;
+      overflow:hidden;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .logoMark:after{
+      content:"";
+      position:absolute; inset:5px;
+      border-radius:10px;
+      background: radial-gradient(circle at top, #151b33 0, #050814 70%);
+    }
+    .logoMark span{position:relative;font-weight:800;color:var(--aws)}
+    .logoTitle{font-weight:700; letter-spacing:0.06em; text-transform:uppercase}
+    .logoSub{font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--muted)}
+
+    .navRight{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end}
+    .pillTag{
+      font-size:11px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      padding:6px 12px;
+      border-radius:var(--pill);
+      background: rgba(79,156,255,0.12);
+      border:1px solid rgba(79,156,255,0.35);
+      color:var(--aws);
+    }
+
+    .btn{
+      border-radius:var(--pill);
+      padding:9px 14px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,0.16);
+      background: rgba(5,8,20,0.70);
+      color:var(--text);
+      cursor:pointer;
+      transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, filter .16s ease;
+      position:relative;
+      overflow:hidden;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(79,156,255,0.55);
+      box-shadow: 0 0 0 2px rgba(79,156,255,0.14), 0 18px 40px rgba(0,0,0,0.55);
+      filter: brightness(1.05);
+    }
+    .btn:active{transform: translateY(0px) scale(0.99)}
+    .btnPrimary{
+      border:none;
+      background: linear-gradient(135deg, var(--aws), #7b60ff);
+      box-shadow: var(--glow);
+      font-weight:650;
+    }
+    .btnPrimary:hover{
+      box-shadow: 0 0 0 2px rgba(79,156,255,0.16), 0 22px 50px rgba(79,156,255,0.55);
+    }
+
+    main{max-width:1180px;margin:0 auto;padding:24px 20px 44px}
+    .section{margin-top:16px}
+    .sectionHead{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .kicker{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:6px 10px;
+      border-radius:var(--pill);
+      border:1px solid rgba(79,156,255,0.35);
+      background: linear-gradient(90deg, rgba(79,156,255,0.14), rgba(79,156,255,0.02));
+      color:var(--aws);
+      font-size:11px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+    }
+    .kicker b{
+      font-size:10px; padding:3px 8px; border-radius:var(--pill);
+      background: rgba(108,242,184,0.12);
+      border:1px solid rgba(108,242,184,0.35);
+      color:var(--good);
+      letter-spacing:.12em;
+    }
+    h1{
+      font-size: clamp(28px, 4.6vw, 40px);
+      line-height:1.08;
+      margin-top:10px;
+      font-weight:800;
+    }
+    .highlight{
+      background: linear-gradient(90deg, var(--aws), #7b60ff, var(--gcp));
+      -webkit-background-clip:text;
+      color:transparent;
+    }
+    .sub{
+      max-width:720px;
+      color:var(--muted);
+      margin-top:10px;
+      font-size:14px;
+    }
+
+    .grid2{display:grid; grid-template-columns: 1.05fr 0.95fr; gap:16px; align-items:start}
+    .gridFull{display:grid; grid-template-columns: 1fr; gap:16px}
+
+    .card{
+      background: var(--bg2);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:16px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.45);
+      position:relative;
+      overflow:hidden;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .card:hover{
+      transform: translateY(-1px);
+      border-color: rgba(79,156,255,0.35);
+      box-shadow: 0 22px 48px rgba(0,0,0,0.55);
+    }
+    .card:before{
+      content:"";
+      position:absolute;
+      inset:-80%;
+      background:
+        radial-gradient(circle at 10% 0, rgba(79,156,255,0.22), transparent 50%),
+        radial-gradient(circle at 90% 40%, rgba(123,96,255,0.20), transparent 55%),
+        radial-gradient(circle at 50% 110%, rgba(255,140,58,0.18), transparent 60%);
+      opacity:.22;
+      pointer-events:none;
+    }
+    .card > *{position:relative; z-index:1}
+
+    .titleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .hTitle{font-size:16px;font-weight:700}
+    .muted{color:var(--muted);font-size:12px}
+
+    .toggle{
+      display:inline-flex;
+      gap:2px;
+      padding:2px;
+      border-radius:var(--pill);
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(5,8,20,0.85);
+    }
+    .toggle button{
+      border:none;
+      background:transparent;
+      color:var(--muted);
+      padding:8px 12px;
+      border-radius:var(--pill);
+      font-size:11px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      cursor:pointer;
+      transition: all .16s ease;
+      display:flex; align-items:center; gap:6px;
+    }
+    .dot{width:7px;height:7px;border-radius:999px;background:transparent}
+    .toggle button.active{
+      background: rgba(255,255,255,0.06);
+      color:var(--text);
+      box-shadow: 0 0 0 2px rgba(79,156,255,0.10);
+    }
+    .toggle button.active[data-cloud="aws"] .dot{background:var(--aws)}
+    .toggle button.active[data-cloud="azure"] .dot{background:var(--azure)}
+    .toggle button.active[data-cloud="gcp"] .dot{background:var(--gcp)}
+
+    .gauges{display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:12px}
+    .gaugeBox{
+      background: rgba(5,8,20,0.72);
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius:16px;
+      padding:14px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .gaugeTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .label{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    .pill{
+      font-size:11px;
+      padding:5px 10px;
+      border-radius:var(--pill);
+      border:1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      color:var(--muted);
+      white-space:nowrap;
+    }
+
+    /* action status pill */
+    .pillAction{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:var(--pill);
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+    }
+    .pillAction .miniDot{
+      width:8px;height:8px;border-radius:999px;
+      background: rgba(167,175,199,0.55);
+      box-shadow: none;
+    }
+    .actionIdle .miniDot{ background: rgba(167,175,199,0.55); }
+    .actionHealing{
+      color: var(--warn);
+      border-color: rgba(255,204,102,0.35);
+      box-shadow: 0 0 0 2px rgba(255,204,102,0.10), 0 0 34px rgba(255,204,102,0.14);
+    }
+    .actionHealing .miniDot{
+      background: var(--warn);
+      box-shadow: 0 0 18px rgba(255,204,102,0.45);
+      animation: bob 0.8s ease-in-out infinite;
+    }
+    .actionStable{
+      color: var(--good);
+      border-color: rgba(108,242,184,0.35);
+      box-shadow: 0 0 0 2px rgba(108,242,184,0.10), 0 0 34px rgba(108,242,184,0.14);
+    }
+    .actionStable .miniDot{
+      background: var(--good);
+      box-shadow: 0 0 18px rgba(108,242,184,0.35);
+    }
+    @keyframes bob{
+      0%,100%{ transform: translateY(0); }
+      50%{ transform: translateY(-2px); }
+    }
+
+    .speedo{display:flex;justify-content:center;align-items:center;padding:4px 0 8px}
+    .speedo svg{width:min(360px,100%);height:auto;filter: drop-shadow(0 10px 18px rgba(0,0,0,0.55));}
+
+    .pulseRed{
+      animation: pulse 1.1s ease-in-out infinite;
+      box-shadow: 0 0 0 2px rgba(255,79,123,0.18), 0 0 44px rgba(255,79,123,0.28);
+    }
+    @keyframes pulse{
+      0%,100%{filter: brightness(1.0)}
+      50%{filter: brightness(1.08)}
+    }
+
+    .readouts{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-top: 8px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .readouts strong{color:var(--text); font-weight:700}
+
+    .formGrid{display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{
+      font-size:10px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .input, select{
+      height:38px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(5,8,20,0.88);
+      color:var(--text);
+      outline:none;
+      transition: box-shadow .16s ease, border-color .16s ease;
+    }
+    .input:focus, select:focus{
+      border-color: rgba(79,156,255,0.55);
+      box-shadow: 0 0 0 2px rgba(79,156,255,0.18);
+    }
+
+    .sliderRow{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      grid-column: 1 / -1;
+      margin-top:6px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.06);
+      background: rgba(5,8,20,0.70);
+    }
+    .sliderTop{
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      font-size:12px; color:var(--muted);
+    }
+    .sliderTop strong{color:var(--text)}
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--aws);
+      cursor:pointer;
+    }
+
+    .ctaRow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:11px; color: rgba(167,175,199,0.95)}
+    .panel{margin-top:10px; white-space: pre-wrap}
+
+    .tableWrap{
+      margin-top:10px;
+      overflow:auto;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.06);
+      background: rgba(5,8,20,0.75);
+    }
+    table{width:100%; border-collapse:collapse; min-width: 860px}
+    thead th{
+      position:sticky; top:0;
+      background: rgba(5,8,20,0.98);
+      text-align:left;
+      font-size:10px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--muted);
+      padding:10px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    tbody td{
+      padding:10px;
+      font-size:12px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+      color: rgba(245,247,255,0.92);
+    }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.03);
+      font-size:11px;
+      white-space:nowrap;
+    }
+    .badgeDot{width:7px;height:7px;border-radius:999px}
+    .goodDot{background:var(--good)}
+    .warnDot{background:var(--warn)}
+    .badDot{background:var(--bad)}
+
+    footer{
+      border-top:1px solid rgba(255,255,255,0.05);
+      padding:18px 20px 24px;
+      font-size:11px;
+      color:var(--muted);
+      margin-top:22px;
+    }
+    .footInner{
+      max-width:1180px;
+      margin:0 auto;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    @media (max-width: 980px){
+      .grid2{grid-template-columns:1fr}
+      .gauges{grid-template-columns:1fr}
+      .formGrid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="nav">
+      <div class="logo">
+        <div class="logoMark"><span>L</span></div>
+        <div>
+          <div class="logoTitle">LifeTechnologies</div>
+          <div class="logoSub">PredictiveOps • Futuristic Risk Dashboard</div>
+        </div>
+      </div>
+
+      <div class="navRight">
+        <div class="pillTag">Autonomous Reliability • Multi-cloud</div>
+        <button class="btn" id="btnConnect">Connect Stream</button>
+        <button class="btn" id="btnClear">Clear</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="sectionHead">
+        <div>
+          <div class="kicker">SYSTEM: ONLINE <b>DEMO MODE</b></div>
+          <h1>
+            Predict instability before users feel it.
+            <span class="highlight">Turn risk into action.</span>
+          </h1>
+          <div class="sub">
+            This dashboard is your control cockpit: watch live Risk Scores like a speedometer,
+            inject test signals, and trigger auto-heal workflows when the system approaches redline.
+          </div>
+        </div>
+
+        <div class="toggle" aria-label="Cloud toggle">
+          <button class="active" data-cloud="aws"><span class="dot"></span>AWS</button>
+          <button data-cloud="azure"><span class="dot"></span>Azure</button>
+          <button data-cloud="gcp"><span class="dot"></span>GCP</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid2">
+      <div class="card" id="dialCard">
+        <div class="titleRow">
+          <div>
+            <div class="hTitle">Live Risk Dials</div>
+            <div class="muted">Dials update from <span class="mono">/api/risk-stream</span> (polling).</div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div class="pill" id="streamPill">DISCONNECTED</div>
+            <div id="actionPill" class="pillAction actionIdle" title="Shows what PredictiveOps is doing right now.">
+              <span class="miniDot"></span>
+              <span id="actionText">IDLE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="gauges">
+          <div class="gaugeBox" id="riskGaugeBox">
+            <div class="gaugeTop">
+              <div class="label">Risk Speedometer</div>
+              <div class="pill">0.00 → 1.00</div>
+            </div>
+
+            <div class="speedo">
+              <svg viewBox="0 0 420 260" role="img" aria-label="Risk Gauge">
+                <path d="M 60 210 A 150 150 0 0 1 360 210" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="20" stroke-linecap="round"/>
+                <path d="M 60 210 A 150 150 0 0 1 210 60" fill="none" stroke="rgba(108,242,184,0.9)" stroke-width="20" stroke-linecap="round"/>
+                <path d="M 210 60 A 150 150 0 0 1 318 110" fill="none" stroke="rgba(255,204,102,0.95)" stroke-width="20" stroke-linecap="round"/>
+                <path d="M 318 110 A 150 150 0 0 1 360 210" fill="none" stroke="rgba(255,79,123,0.95)" stroke-width="20" stroke-linecap="round"/>
+
+                <path d="M 78 210 A 132 132 0 0 1 342 210" fill="none" stroke="rgba(79,156,255,0.20)" stroke-width="10" stroke-linecap="round"/>
+
+                <g opacity="0.9"><g id="ticks"></g></g>
+
+                <g id="needle" transform="rotate(-120 210 210)">
+                  <line x1="210" y1="210" x2="210" y2="88" stroke="rgba(245,247,255,0.95)" stroke-width="6" stroke-linecap="round"/>
+                  <line x1="210" y1="210" x2="210" y2="110" stroke="rgba(79,156,255,0.55)" stroke-width="2" stroke-linecap="round"/>
+                </g>
+
+                <circle cx="210" cy="210" r="14" fill="rgba(5,8,20,0.95)" stroke="rgba(255,255,255,0.16)" stroke-width="2"/>
+                <circle cx="210" cy="210" r="6" fill="rgba(79,156,255,0.9)"/>
+
+                <text id="riskText" x="210" y="178" text-anchor="middle" font-size="34" font-weight="800" fill="rgba(245,247,255,0.95)">0.00</text>
+                <text x="210" y="202" text-anchor="middle" font-size="11" letter-spacing="3" fill="rgba(167,175,199,0.95)">RISK SCORE</text>
+
+                <text x="70" y="238" font-size="10" fill="rgba(167,175,199,0.9)">0.0</text>
+                <text x="200" y="52" font-size="10" fill="rgba(167,175,199,0.9)">0.5</text>
+                <text x="352" y="238" font-size="10" fill="rgba(167,175,199,0.9)">1.0</text>
+              </svg>
+            </div>
+
+            <div class="readouts">
+              <div>Resource: <strong id="roResource">—</strong></div>
+              <div>Cloud: <strong id="roCloud">AWS</strong></div>
+              <div>Latency: <strong id="roLatency">—</strong> ms</div>
+              <div>Error rate: <strong id="roError">—</strong> %</div>
+              <div>NXDOMAIN: <strong id="roNx">—</strong></div>
+              <div>Auto-heal: <strong id="roHeal">—</strong></div>
+            </div>
+          </div>
+
+          <div class="gaugeBox">
+            <div class="gaugeTop">
+              <div class="label">Auto-heal / Notes</div>
+              <div class="pill">Webhook triggered when risk ≥ threshold</div>
+            </div>
+
+            <div class="muted">
+              When the dial hits redline, PredictiveOps can trigger runbooks (restart, reroute, failover) automatically.
+            </div>
+
+            <div class="mono panel" id="healLog">No auto-heal yet.</div>
+            <div class="mono panel" id="actionLog">Last action: —</div>
+
+            <div class="sliderRow" style="margin-top:12px;">
+              <div class="sliderTop">
+                <span>Risk Threshold</span>
+                <span><strong id="thVal">0.75</strong></span>
+              </div>
+              <input id="threshold" type="range" min="0" max="1" step="0.05" value="0.75" />
+              <div class="muted">This controls your “redline” cue on the UI (and should match your RiskEngine env).</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="titleRow">
+          <div>
+            <div class="hTitle">Customer Test Console</div>
+            <div class="muted">Send events to <span class="mono">POST /api/risk-event</span> and watch the dial jump.</div>
+          </div>
+        </div>
+
+        <div class="formGrid">
+          <div class="field">
+            <label>API Base</label>
+            <input class="input" id="apiBase" value="http://localhost:7072" />
+          </div>
+          <div class="field">
+            <label>Resource ID</label>
+            <input class="input" id="resourceId" value="azure-webapp/prod-api" />
+          </div>
+        </div>
+
+        <div class="sliderRow">
+          <div class="sliderTop">
+            <span>Latency (ms)</span>
+            <span><strong id="latVal">550</strong></span>
+          </div>
+          <input id="latency" type="range" min="0" max="2000" step="10" value="550" />
+        </div>
+
+        <div class="sliderRow">
+          <div class="sliderTop">
+            <span>Error rate (%)</span>
+            <span><strong id="errVal">3.5</strong></span>
+          </div>
+          <input id="errorRate" type="range" min="0" max="15" step="0.1" value="3.5" />
+        </div>
+
+        <div class="formGrid">
+          <div class="field">
+            <label>NXDOMAIN Anomaly</label>
+            <select id="nxdomain" class="input">
+              <option value="false" selected>false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Notes (optional)</label>
+            <input class="input" id="notes" placeholder="chaos drill, rollout test, customer validation..." />
+          </div>
+        </div>
+
+        <div class="ctaRow">
+          <button class="btn btnPrimary" id="btnSend">Send Test Event ⚡</button>
+          <button class="btn" id="btnSafe">Safe (Green)</button>
+          <button class="btn" id="btnSpike">Spike (Redline)</button>
+        </div>
+
+        <div class="mono panel" id="lastResp">Awaiting event…</div>
+      </div>
+    </section>
+
+    <section class="section gridFull">
+      <div class="card">
+        <div class="titleRow">
+          <div>
+            <div class="hTitle">Risk Timeline</div>
+            <div class="muted">Recent events (local). With stream connected, this fills automatically.</div>
+          </div>
+          <div class="pill">Demo-ready • screenshot friendly</div>
+        </div>
+
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Cloud</th>
+                <th>Resource</th>
+                <th>Latency</th>
+                <th>Error %</th>
+                <th>NXDOMAIN</th>
+                <th>Risk</th>
+                <th>Cosmos</th>
+                <th>Auto-heal</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="footInner">
+        <div>© <span id="year"></span> LifeTechnologies • PredictiveOps</div>
+        <div class="muted">Futuristic cockpit UI • Speedometer dials • Multi-cloud scheme</div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    // ========= Helpers =========
+    const $ = (id) => document.getElementById(id);
+    const clamp = (v,min,max) => Math.min(max, Math.max(min, v));
+
+    let activeCloud = "aws";
+
+    // polling "stream"
+    let pollTimer = null;
+    let latestSeq = 0;
+
+    // auto-heal demo control (prevents loops)
+    let lastHealKey = null;
+
+    // ========= Build ticks =========
+    (function buildTicks(){
+      const g = document.getElementById("ticks");
+      const start = -120, end = 120, steps = 10;
+      for (let i=0;i<=steps;i++){
+        const t = i/steps;
+        const ang = (start + (end-start)*t) * Math.PI/180;
+        const cx=210, cy=210, r1=148, r2=(i%2===0)?128:136;
+        const x1 = cx + r1*Math.cos(ang);
+        const y1 = cy + r1*Math.sin(ang);
+        const x2 = cx + r2*Math.cos(ang);
+        const y2 = cy + r2*Math.sin(ang);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+        line.setAttribute("stroke", "rgba(255,255,255,0.16)");
+        line.setAttribute("stroke-width", i%2===0 ? 3 : 2);
+        line.setAttribute("stroke-linecap","round");
+        g.appendChild(line);
+      }
+    })();
+
+    // ========= UI: action pill =========
+    function setAction(state, note){
+      const pill = $("actionPill");
+      const txt = $("actionText");
+
+      pill.classList.remove("actionIdle","actionHealing","actionStable");
+
+      if (state === "HEALING"){
+        pill.classList.add("actionHealing");
+        txt.textContent = "HEALING…";
+      } else if (state === "STABLE"){
+        pill.classList.add("actionStable");
+        txt.textContent = "STABLE";
+      } else {
+        pill.classList.add("actionIdle");
+        txt.textContent = "IDLE";
+      }
+
+      if (note){
+        $("actionLog").textContent = `Last action: ${note}`;
+      }
+    }
+
+    // ========= Gauge =========
+    function riskToAngle(risk){ return -120 + 240 * clamp(risk,0,1); }
+    function setGauge(risk){
+      const needle = document.getElementById("needle");
+      needle.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
+      needle.setAttribute("transform", `rotate(${riskToAngle(risk)} 210 210)`);
+      document.getElementById("riskText").textContent = (Number(risk)||0).toFixed(2);
+
+      const th = Number($("threshold").value || 0.75);
+      const box = $("riskGaugeBox");
+      if (risk >= th) box.classList.add("pulseRed");
+      else box.classList.remove("pulseRed");
+    }
+
+    // ========= Badges =========
+    function riskBadge(r){
+      const th = Number($("threshold").value || 0.75);
+      if (r < th*0.75) return `<span class="badge"><span class="badgeDot goodDot"></span>OK</span>`;
+      if (r < th) return `<span class="badge"><span class="badgeDot warnDot"></span>RISING</span>`;
+      return `<span class="badge"><span class="badgeDot badDot"></span>REDLINE</span>`;
+    }
+
+    function addRow(evt){
+      const tbody = $("rows");
+      const tr = document.createElement("tr");
+
+      const t = evt.timestamp || new Date().toISOString();
+      const cloud = (evt.cloud || activeCloud).toUpperCase();
+      const rid = evt.resourceId || "—";
+      const lat = (evt.latency ?? "—");
+      const er  = (evt.errorRate ?? "—");
+      const nx  = (evt.nxdomainAnomaly ?? "—");
+      const risk = Number(evt.risk ?? 0);
+      const cosmos = evt.cosmosWrite ? "✅" : (evt.cosmosWrite === false ? "❌" : "—");
+      const heal = evt.autoHealTriggered ? "⚡" : (evt.autoHealTriggered === false ? "—" : "—");
+
+      tr.innerHTML = `
+        <td class="mono">${t}</td>
+        <td>${cloud}</td>
+        <td class="mono">${rid}</td>
+        <td>${lat}</td>
+        <td>${er}</td>
+        <td>${nx}</td>
+        <td>${risk.toFixed(2)} ${riskBadge(risk)}</td>
+        <td>${cosmos}</td>
+        <td>${heal}</td>
+      `;
+      tbody.prepend(tr);
+      while (tbody.children.length > 40) tbody.removeChild(tbody.lastChild);
+    }
+
+    function applyEvent(evt){
+      const risk = Number(evt.risk ?? 0);
+      setGauge(risk);
+
+      $("roResource").textContent = evt.resourceId || "—";
+      $("roCloud").textContent = (evt.cloud || activeCloud).toUpperCase();
+      $("roLatency").textContent = (evt.latency ?? "—");
+      $("roError").textContent = (evt.errorRate ?? "—");
+      $("roNx").textContent = (evt.nxdomainAnomaly ?? "—");
+      $("roHeal").textContent = evt.autoHealTriggered ? "TRIGGERED" : "no";
+
+      if (evt.autoHealTriggered){
+        setAction("HEALING", `Auto-heal triggered for ${evt.resourceId} (risk=${risk.toFixed(2)})`);
+
+        $("healLog").textContent =
+          `[${new Date().toISOString()}]\nAUTO-HEAL TRIGGERED\nresourceId=${evt.resourceId}\nrisk=${risk.toFixed(2)}\n`;
+
+        // ---- Recovery Event Demo ----
+        // We send a "recovery" event once per unique trigger so the dial falls back down.
+        // key is resourceId + timestamp (fallback to now if missing).
+        const key = `${evt.resourceId || "resource"}::${evt.timestamp || ""}::${risk.toFixed(2)}`;
+        if (lastHealKey !== key){
+          lastHealKey = key;
+
+          setTimeout(() => {
+            // simulate the system stabilizing after the auto-heal action
+            const recovery = {
+              resourceId: evt.resourceId || $("resourceId").value.trim() || "azure-webapp/prod-api",
+              latency: 110,
+              errorRate: 0.2,
+              nxdomainAnomaly: false,
+              notes: "auto-heal recovery (demo)",
+              cloud: evt.cloud || activeCloud
+            };
+
+            // this hits your API so it becomes "real" telemetry and shows in Cosmos + stream
+            sendEvent(recovery, { silent: true, label: "RECOVERY EVENT SENT" })
+              .then(() => {
+                setAction("STABLE", `Recovered: ${recovery.resourceId} returned to stable telemetry`);
+                // fall back to IDLE after a moment
+                setTimeout(() => setAction("IDLE", "Standing by"), 2200);
+              })
+              .catch(() => {
+                // even if recovery fails, we don't want UI to lock in HEALING forever
+                setTimeout(() => setAction("IDLE", "Standing by"), 1400);
+              });
+          }, 1400);
+        }
+
+      } else {
+        // if risk is low enough, show stable for a moment then idle
+        const th = Number($("threshold").value || 0.75);
+        if (risk < th * 0.75){
+          setAction("STABLE", `Telemetry stable (risk=${risk.toFixed(2)})`);
+          setTimeout(() => setAction("IDLE", "Standing by"), 1600);
+        }
+      }
+
+      addRow(evt);
+    }
+
+    // ========= Cloud toggle =========
+    document.querySelectorAll(".toggle button").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll(".toggle button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        activeCloud = btn.getAttribute("data-cloud");
+        $("roCloud").textContent = activeCloud.toUpperCase();
+      });
+    });
+
+    // ========= Slider binding =========
+    function bindSlider(id, outId, fmt = (v)=>v){
+      const el = $(id), out = $(outId);
+      const sync = ()=> out.textContent = fmt(el.value);
+      el.addEventListener("input", sync);
+      sync();
+    }
+    bindSlider("latency","latVal",(v)=>String(Math.round(Number(v))));
+    bindSlider("errorRate","errVal",(v)=>Number(v).toFixed(1));
+    bindSlider("threshold","thVal",(v)=>Number(v).toFixed(2));
+
+    // Ensure threshold change updates gauge pulse immediately (even without new events)
+    $("threshold").addEventListener("input", ()=> {
+      const current = Number($("riskText").textContent || 0);
+      setGauge(current);
+    });
+
+    function dispatchInput(id){
+      const el = $(id);
+      el.dispatchEvent(new Event("input", { bubbles:true }));
+    }
+
+    // ========= Send event =========
+    async function sendEvent(payload, opts = {}){
+      const base = $("apiBase").value.replace(/\/+$/,"");
+      const url = `${base}/api/risk-event`;
+      if (!opts.silent) $("lastResp").textContent = "Sending…";
+
+      const resp = await fetch(url, {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload),
+        cache: "no-store",
+      });
+
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+      if (!opts.silent){
+        $("lastResp").textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+      } else if (opts.label){
+        $("lastResp").textContent = `${opts.label}\nHTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+      }
+
+      if (data && typeof data === "object" && ("risk" in data)){
+        data.cloud = payload.cloud || activeCloud;
+        data.timestamp = data.timestamp || new Date().toISOString();
+        applyEvent(data);
+      }
+
+      if (!resp.ok){
+        throw new Error(`HTTP ${resp.status}`);
+      }
+
+      return data;
+    }
+
+    $("btnSend").addEventListener("click", ()=>{
+      const payload = {
+        resourceId: $("resourceId").value.trim(),
+        latency: Number($("latency").value || 0),
+        errorRate: Number($("errorRate").value || 0),
+        nxdomainAnomaly: $("nxdomain").value === "true",
+        notes: $("notes").value.trim() || undefined,
+        cloud: activeCloud
+      };
+      sendEvent(payload).catch((e)=>{
+        $("lastResp").textContent = `Error: ${e.message}`;
+      });
+    });
+
+    $("btnSpike").addEventListener("click", ()=>{
+      $("latency").value = 1250;
+      $("errorRate").value = 8.5;
+      $("nxdomain").value = "true";
+      dispatchInput("latency");
+      dispatchInput("errorRate");
+    });
+
+    $("btnSafe").addEventListener("click", ()=>{
+      $("latency").value = 120;
+      $("errorRate").value = 0.2;
+      $("nxdomain").value = "false";
+      dispatchInput("latency");
+      dispatchInput("errorRate");
+    });
+
+    // ========= Stream (polling) =========
+    async function pollStreamOnce(){
+      const base = $("apiBase").value.replace(/\/+$/,"");
+      const url = `${base}/api/risk-stream?since=${latestSeq}`;
+
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`Stream HTTP ${r.status}`);
+      const data = await r.json();
+
+      const events = data.events || [];
+      latestSeq = data.latestSeq || latestSeq;
+
+      for (const evt of events) {
+        evt.cloud = evt.cloud || activeCloud;
+        applyEvent(evt);
+      }
+    }
+
+    function connectStream(){
+      if (pollTimer) clearInterval(pollTimer);
+
+      $("streamPill").textContent = "CONNECTING…";
+      $("streamPill").style.color = "var(--warn)";
+
+      // poll immediately, then every 1s
+      pollStreamOnce()
+        .then(() => {
+          $("streamPill").textContent = "CONNECTED";
+          $("streamPill").style.color = "var(--good)";
+        })
+        .catch((e) => {
+          $("streamPill").textContent = "DISCONNECTED";
+          $("streamPill").style.color = "var(--warn)";
+          $("lastResp").textContent = `Stream error: ${e.message}`;
+        });
+
+      pollTimer = setInterval(() => {
+        pollStreamOnce().catch(() => {
+          $("streamPill").textContent = "DISCONNECTED";
+          $("streamPill").style.color = "var(--warn)";
+        });
+      }, 1000);
+    }
+
+    $("btnConnect").addEventListener("click", connectStream);
+
+    // ========= Clear =========
+    $("btnClear").addEventListener("click", ()=>{
+      $("rows").innerHTML = "";
+      $("healLog").textContent = "No auto-heal yet.";
+      $("lastResp").textContent = "Cleared.";
+      $("actionLog").textContent = "Last action: —";
+      $("roResource").textContent = "—";
+      $("roLatency").textContent = "—";
+      $("roError").textContent = "—";
+      $("roNx").textContent = "—";
+      $("roHeal").textContent = "—";
+      latestSeq = 0;
+      lastHealKey = null;
+      setAction("IDLE", "Standing by");
+      setGauge(0);
+    });
+
+    // ========= Init =========
+    document.getElementById("year").textContent = new Date().getFullYear().toString();
+    setAction("IDLE", "Standing by");
+    setGauge(0);
+  </script>
+</body>
+</html>
