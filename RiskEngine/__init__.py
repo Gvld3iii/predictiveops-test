@@ -4,10 +4,8 @@ import re
 import uuid
 import datetime
 import logging
-import time
 
 import azure.functions as func
-from shared_state import push_event
 
 try:
     import requests
@@ -29,23 +27,45 @@ COSMOS_DB = os.getenv("COSMOS_DB", "predictiveops").strip()
 COSMOS_CONTAINER = os.getenv("COSMOS_CONTAINER", "riskEvents").strip()
 
 RISK_THRESHOLD = float(os.getenv("RISK_THRESHOLD", "0.75"))
+
+# Back-compat: older name
 WEBHOOK_RESTART = os.getenv("WEBHOOK_RESTART", "").strip()
+# New: demo-friendly internal endpoint (recommended)
+AUTOHEAL_URL = os.getenv("AUTOHEAL_URL", "").strip()
+
 VERBOSE = os.getenv("VERBOSE", "false").lower() in ("1", "true", "yes")
 
 _cosmos_container = None
 
 
 # =========================
-# Helpers
+# CORS helpers
 # =========================
-def cors_headers():
+def cors_headers(req: func.HttpRequest) -> dict:
+    """
+    For demo we allow *.
+    If you want to lock it down later, swap '*' for req.headers.get('Origin', '').
+    """
+    origin = req.headers.get("Origin", "*")
     return {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": origin if origin else "*",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
         "Cache-Control": "no-store",
     }
 
+def preflight_response(req: func.HttpRequest) -> func.HttpResponse:
+    return func.HttpResponse(
+        body="",
+        status_code=204,
+        headers=cors_headers(req),
+    )
+
+
+# =========================
+# Helpers
+# =========================
 def now_utc_iso() -> str:
     return datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
 
@@ -95,8 +115,7 @@ def write_risk_event(container, item: dict) -> bool:
     if not container:
         return False
     try:
-        # IMPORTANT: do NOT pass partition_key kwarg (caused your error).
-        # If container partition key is /resourceId, Cosmos uses item["resourceId"].
+        # Partition key should be present in item if your container uses /resourceId
         container.create_item(body=item)
         return True
     except Exception as e:
@@ -104,8 +123,12 @@ def write_risk_event(container, item: dict) -> bool:
         return False
 
 def call_restart_webhook(resource_id: str, risk: float, telemetry: dict) -> bool:
-    if not WEBHOOK_RESTART:
-        logging.warning("[RiskEngine] WEBHOOK_RESTART not set; skipping auto-heal.")
+    """
+    Calls WEBHOOK_RESTART if set (legacy), else AUTOHEAL_URL if set.
+    """
+    target = WEBHOOK_RESTART or AUTOHEAL_URL
+    if not target:
+        logging.warning("[RiskEngine] WEBHOOK_RESTART/AUTOHEAL_URL not set; skipping auto-heal.")
         return False
 
     if requests is None:
@@ -121,15 +144,15 @@ def call_restart_webhook(resource_id: str, risk: float, telemetry: dict) -> bool
     }
 
     try:
-        resp = requests.post(WEBHOOK_RESTART, json=payload, timeout=10)
+        resp = requests.post(target, json=payload, timeout=10)
         if 200 <= resp.status_code < 300:
-            logging.info(f"[RiskEngine] Restart webhook OK ({resp.status_code}) for {resource_id}")
+            logging.info(f"[RiskEngine] Auto-heal OK ({resp.status_code}) for {resource_id}")
             return True
 
-        logging.warning(f"[RiskEngine] Restart webhook failed ({resp.status_code}): {resp.text[:400]}")
+        logging.warning(f"[RiskEngine] Auto-heal failed ({resp.status_code}): {resp.text[:400]}")
         return False
     except Exception as e:
-        logging.exception(f"[RiskEngine] Failed to call restart webhook: {e}")
+        logging.exception(f"[RiskEngine] Failed to call auto-heal endpoint: {e}")
         return False
 
 
@@ -137,11 +160,13 @@ def call_restart_webhook(resource_id: str, risk: float, telemetry: dict) -> bool
 # Azure Function entrypoint
 # =========================
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    # CORS preflight
-    if req.method == "OPTIONS":
-        return func.HttpResponse("", status_code=204, headers=cors_headers())
-
     logging.info("PredictiveOps Azure RiskEngine triggered")
+
+    # ✅ CORS preflight
+    if req.method and req.method.upper() == "OPTIONS":
+        return preflight_response(req)
+
+    headers = cors_headers(req)
 
     try:
         body = req.get_json()
@@ -150,7 +175,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             json.dumps({"ok": False, "error": "Invalid JSON body"}),
             status_code=400,
             mimetype="application/json",
-            headers=cors_headers(),
+            headers=headers,
         )
 
     # Support: {detail:{...}} OR flat
@@ -163,7 +188,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             json.dumps({"ok": False, "error": "resourceId is required"}),
             status_code=400,
             mimetype="application/json",
-            headers=cors_headers(),
+            headers=headers,
         )
 
     latency = float(body.get("latency", 0) or 0)
@@ -180,7 +205,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     safe_resource = safe_cosmos_id(resource_id)
     event_id = f"{safe_resource}-{datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
-    ts = now_utc_iso()
 
     item = {
         "id": event_id,
@@ -189,7 +213,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "errorRate": error_rate,
         "nxdomainAnomaly": nxdomain,
         "risk": risk,
-        "timestamp": ts,
+        "timestamp": now_utc_iso(),
+        "cloud": body.get("cloud", None),
     }
 
     container = get_cosmos_container()
@@ -209,30 +234,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "ok": True,
         "cosmosWrite": bool(wrote),
         "autoHealTriggered": bool(healed),
-        "timestamp": ts,
+        "timestamp": item["timestamp"],
     }
-
-    # Push the risk event to the stream buffer so the UI can see it live
-    push_event(resp_obj)
-
-    # If auto-heal happened, simulate recovery with a follow-up event that drops risk
-    if healed:
-        # tiny delay so UI feels "real time"
-        time.sleep(0.35)
-        healed_evt = dict(resp_obj)
-        healed_evt["id"] = f"{event_id}-healed"
-        healed_evt["timestamp"] = now_utc_iso()
-        healed_evt["notes"] = "auto-heal completed"
-        healed_evt["latency"] = min(latency, 120.0)
-        healed_evt["errorRate"] = min(error_rate, 0.2)
-        healed_evt["nxdomainAnomaly"] = False
-        healed_evt["risk"] = compute_risk(healed_evt["latency"], healed_evt["errorRate"], False)
-        healed_evt["autoHealTriggered"] = True
-        push_event(healed_evt)
 
     return func.HttpResponse(
         json.dumps(resp_obj),
         status_code=200,
         mimetype="application/json",
-        headers=cors_headers(),
+        headers=headers,
     )

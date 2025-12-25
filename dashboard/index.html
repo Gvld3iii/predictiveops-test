@@ -259,47 +259,6 @@
       white-space:nowrap;
     }
 
-    /* action status pill */
-    .pillAction{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:var(--pill);
-      border:1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.03);
-      color: var(--muted);
-    }
-    .pillAction .miniDot{
-      width:8px;height:8px;border-radius:999px;
-      background: rgba(167,175,199,0.55);
-      box-shadow: none;
-    }
-    .actionIdle .miniDot{ background: rgba(167,175,199,0.55); }
-    .actionHealing{
-      color: var(--warn);
-      border-color: rgba(255,204,102,0.35);
-      box-shadow: 0 0 0 2px rgba(255,204,102,0.10), 0 0 34px rgba(255,204,102,0.14);
-    }
-    .actionHealing .miniDot{
-      background: var(--warn);
-      box-shadow: 0 0 18px rgba(255,204,102,0.45);
-      animation: bob 0.8s ease-in-out infinite;
-    }
-    .actionStable{
-      color: var(--good);
-      border-color: rgba(108,242,184,0.35);
-      box-shadow: 0 0 0 2px rgba(108,242,184,0.10), 0 0 34px rgba(108,242,184,0.14);
-    }
-    .actionStable .miniDot{
-      background: var(--good);
-      box-shadow: 0 0 18px rgba(108,242,184,0.35);
-    }
-    @keyframes bob{
-      0%,100%{ transform: translateY(0); }
-      50%{ transform: translateY(-2px); }
-    }
-
     .speedo{display:flex;justify-content:center;align-items:center;padding:4px 0 8px}
     .speedo svg{width:min(360px,100%);height:auto;filter: drop-shadow(0 10px 18px rgba(0,0,0,0.55));}
 
@@ -396,6 +355,7 @@
       border-bottom:1px solid rgba(255,255,255,0.06);
       color: rgba(245,247,255,0.92);
     }
+
     .badge{
       display:inline-flex; align-items:center; gap:6px;
       padding:4px 10px; border-radius:999px;
@@ -408,6 +368,54 @@
     .goodDot{background:var(--good)}
     .warnDot{background:var(--warn)}
     .badDot{background:var(--bad)}
+
+    /* Legend panel on the right */
+    .timelineLayout{
+      display:grid;
+      grid-template-columns: minmax(0,3fr) minmax(230px, 1fr);
+      gap:14px;
+      align-items:flex-start;
+      margin-top:10px;
+    }
+    .legendCard{
+      border-radius:14px;
+      border:1px solid rgba(79,156,255,0.45);
+      background: radial-gradient(circle at top, rgba(79,156,255,0.18), rgba(5,8,20,0.92));
+      padding:10px 12px;
+      box-shadow:0 18px 40px rgba(0,0,0,0.65);
+      font-size:11px;
+      color:var(--muted);
+    }
+    .legendHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
+    }
+    .legendTitle{
+      font-size:11px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--text);
+    }
+    .legendBody{line-height:1.7}
+    .legendBody strong{color:var(--text)}
+
+    .helpIcon{
+      width:20px;
+      height:20px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(5,8,20,0.92);
+      color:var(--muted);
+      font-size:11px;
+      font-weight:600;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:default;
+    }
 
     footer{
       border-top:1px solid rgba(255,255,255,0.05);
@@ -430,6 +438,9 @@
       .grid2{grid-template-columns:1fr}
       .gauges{grid-template-columns:1fr}
       .formGrid{grid-template-columns:1fr}
+      .timelineLayout{
+        grid-template-columns:1fr;
+      }
     }
   </style>
 </head>
@@ -483,14 +494,7 @@
             <div class="hTitle">Live Risk Dials</div>
             <div class="muted">Dials update from <span class="mono">/api/risk-stream</span> (polling).</div>
           </div>
-
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div class="pill" id="streamPill">DISCONNECTED</div>
-            <div id="actionPill" class="pillAction actionIdle" title="Shows what PredictiveOps is doing right now.">
-              <span class="miniDot"></span>
-              <span id="actionText">IDLE</span>
-            </div>
-          </div>
+          <div class="pill" id="streamPill">DISCONNECTED</div>
         </div>
 
         <div class="gauges">
@@ -543,13 +547,10 @@
               <div class="label">Auto-heal / Notes</div>
               <div class="pill">Webhook triggered when risk ≥ threshold</div>
             </div>
-
             <div class="muted">
               When the dial hits redline, PredictiveOps can trigger runbooks (restart, reroute, failover) automatically.
             </div>
-
             <div class="mono panel" id="healLog">No auto-heal yet.</div>
-            <div class="mono panel" id="actionLog">Last action: —</div>
 
             <div class="sliderRow" style="margin-top:12px;">
               <div class="sliderTop">
@@ -559,7 +560,6 @@
               <input id="threshold" type="range" min="0" max="1" step="0.05" value="0.75" />
               <div class="muted">This controls your “redline” cue on the UI (and should match your RiskEngine env).</div>
             </div>
-
           </div>
         </div>
       </div>
@@ -575,7 +575,7 @@
         <div class="formGrid">
           <div class="field">
             <label>API Base</label>
-            <input class="input" id="apiBase" value="http://localhost:7072" />
+            <input class="input" id="apiBase" value="https://predictiveops-api-690478.azurewebsites.net" />
           </div>
           <div class="field">
             <label>Resource ID</label>
@@ -617,6 +617,7 @@
           <button class="btn btnPrimary" id="btnSend">Send Test Event ⚡</button>
           <button class="btn" id="btnSafe">Safe (Green)</button>
           <button class="btn" id="btnSpike">Spike (Redline)</button>
+          <button class="btn" id="btnDrill">Run Chaos Drill 🧪</button>
         </div>
 
         <div class="mono panel" id="lastResp">Awaiting event…</div>
@@ -633,23 +634,50 @@
           <div class="pill">Demo-ready • screenshot friendly</div>
         </div>
 
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Cloud</th>
-                <th>Resource</th>
-                <th>Latency</th>
-                <th>Error %</th>
-                <th>NXDOMAIN</th>
-                <th>Risk</th>
-                <th>Cosmos</th>
-                <th>Auto-heal</th>
-              </tr>
-            </thead>
-            <tbody id="rows"></tbody>
-          </table>
+        <div class="timelineLayout">
+          <div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Cloud</th>
+                    <th>Resource</th>
+                    <th>Latency</th>
+                    <th>Error %</th>
+                    <th>NXDOMAIN</th>
+                    <th>Risk</th>
+                    <th>Cosmos</th>
+                    <th>Auto-heal</th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="legendCard">
+            <div class="legendHeader">
+              <span class="legendTitle">Legend</span>
+              <span class="helpIcon">?</span>
+            </div>
+            <div class="legendBody">
+              <p><strong>Cosmos</strong><br>
+                ✅ write to Cosmos DB succeeded<br>
+                ❌ write failed (auth/quota/region issue)<br>
+                — no write attempted
+              </p>
+              <p style="margin-top:6px;"><strong>Auto-heal</strong><br>
+                ⚡ auto-heal webhook triggered for this event<br>
+                — no auto-heal fired
+              </p>
+              <p style="margin-top:6px;"><strong>Risk chips</strong><br>
+                <span class="badge"><span class="badgeDot goodDot"></span>OK</span> healthy<br>
+                <span class="badge"><span class="badgeDot warnDot"></span>RISING</span> elevated risk<br>
+                <span class="badge"><span class="badgeDot badDot"></span>REDLINE</span> above threshold
+              </p>
+            </div>
+          </aside>
         </div>
       </div>
     </section>
@@ -666,15 +694,13 @@
     // ========= Helpers =========
     const $ = (id) => document.getElementById(id);
     const clamp = (v,min,max) => Math.min(max, Math.max(min, v));
+    const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
     let activeCloud = "aws";
 
     // polling "stream"
     let pollTimer = null;
-    let latestSeq = 0;
-
-    // auto-heal demo control (prevents loops)
-    let lastHealKey = null;
+    let lastSeq = 0;
 
     // ========= Build ticks =========
     (function buildTicks(){
@@ -699,42 +725,41 @@
       }
     })();
 
-    // ========= UI: action pill =========
-    function setAction(state, note){
-      const pill = $("actionPill");
-      const txt = $("actionText");
+    // ========= Gauge (smooth animation) =========
+    let currentRisk = 0;
+    let targetRisk = 0;
 
-      pill.classList.remove("actionIdle","actionHealing","actionStable");
-
-      if (state === "HEALING"){
-        pill.classList.add("actionHealing");
-        txt.textContent = "HEALING…";
-      } else if (state === "STABLE"){
-        pill.classList.add("actionStable");
-        txt.textContent = "STABLE";
-      } else {
-        pill.classList.add("actionIdle");
-        txt.textContent = "IDLE";
-      }
-
-      if (note){
-        $("actionLog").textContent = `Last action: ${note}`;
-      }
-    }
-
-    // ========= Gauge =========
     function riskToAngle(risk){ return -120 + 240 * clamp(risk,0,1); }
-    function setGauge(risk){
-      const needle = document.getElementById("needle");
-      needle.style.transition = "transform 420ms cubic-bezier(.2,.8,.2,1)";
-      needle.setAttribute("transform", `rotate(${riskToAngle(risk)} 210 210)`);
-      document.getElementById("riskText").textContent = (Number(risk)||0).toFixed(2);
 
+    function updateGaugePulse(riskVal){
       const th = Number($("threshold").value || 0.75);
       const box = $("riskGaugeBox");
-      if (risk >= th) box.classList.add("pulseRed");
+      if (riskVal >= th) box.classList.add("pulseRed");
       else box.classList.remove("pulseRed");
     }
+
+    function renderGauge(risk){
+      const needle = document.getElementById("needle");
+      needle.setAttribute("transform", `rotate(${riskToAngle(risk)} 210 210)`);
+      document.getElementById("riskText").textContent = (Number(risk)||0).toFixed(2);
+      updateGaugePulse(risk);
+    }
+
+    function setGaugeTarget(risk){
+      targetRisk = clamp(Number(risk)||0, 0, 1);
+    }
+
+    function animateGauge(){
+      const diff = targetRisk - currentRisk;
+      if (Math.abs(diff) > 0.001){
+        currentRisk += diff * 0.16; // smoothing factor
+      } else {
+        currentRisk = targetRisk;
+      }
+      renderGauge(currentRisk);
+      requestAnimationFrame(animateGauge);
+    }
+    requestAnimationFrame(animateGauge);
 
     // ========= Badges =========
     function riskBadge(r){
@@ -755,8 +780,9 @@
       const er  = (evt.errorRate ?? "—");
       const nx  = (evt.nxdomainAnomaly ?? "—");
       const risk = Number(evt.risk ?? 0);
-      const cosmos = evt.cosmosWrite ? "✅" : (evt.cosmosWrite === false ? "❌" : "—");
-      const heal = evt.autoHealTriggered ? "⚡" : (evt.autoHealTriggered === false ? "—" : "—");
+      const cosmos = evt.cosmosWrite === true ? "✅" :
+                     evt.cosmosWrite === false ? "❌" : "—";
+      const heal = evt.autoHealTriggered ? "⚡" : "—";
 
       tr.innerHTML = `
         <td class="mono">${t}</td>
@@ -775,7 +801,7 @@
 
     function applyEvent(evt){
       const risk = Number(evt.risk ?? 0);
-      setGauge(risk);
+      setGaugeTarget(risk);
 
       $("roResource").textContent = evt.resourceId || "—";
       $("roCloud").textContent = (evt.cloud || activeCloud).toUpperCase();
@@ -785,50 +811,8 @@
       $("roHeal").textContent = evt.autoHealTriggered ? "TRIGGERED" : "no";
 
       if (evt.autoHealTriggered){
-        setAction("HEALING", `Auto-heal triggered for ${evt.resourceId} (risk=${risk.toFixed(2)})`);
-
         $("healLog").textContent =
           `[${new Date().toISOString()}]\nAUTO-HEAL TRIGGERED\nresourceId=${evt.resourceId}\nrisk=${risk.toFixed(2)}\n`;
-
-        // ---- Recovery Event Demo ----
-        // We send a "recovery" event once per unique trigger so the dial falls back down.
-        // key is resourceId + timestamp (fallback to now if missing).
-        const key = `${evt.resourceId || "resource"}::${evt.timestamp || ""}::${risk.toFixed(2)}`;
-        if (lastHealKey !== key){
-          lastHealKey = key;
-
-          setTimeout(() => {
-            // simulate the system stabilizing after the auto-heal action
-            const recovery = {
-              resourceId: evt.resourceId || $("resourceId").value.trim() || "azure-webapp/prod-api",
-              latency: 110,
-              errorRate: 0.2,
-              nxdomainAnomaly: false,
-              notes: "auto-heal recovery (demo)",
-              cloud: evt.cloud || activeCloud
-            };
-
-            // this hits your API so it becomes "real" telemetry and shows in Cosmos + stream
-            sendEvent(recovery, { silent: true, label: "RECOVERY EVENT SENT" })
-              .then(() => {
-                setAction("STABLE", `Recovered: ${recovery.resourceId} returned to stable telemetry`);
-                // fall back to IDLE after a moment
-                setTimeout(() => setAction("IDLE", "Standing by"), 2200);
-              })
-              .catch(() => {
-                // even if recovery fails, we don't want UI to lock in HEALING forever
-                setTimeout(() => setAction("IDLE", "Standing by"), 1400);
-              });
-          }, 1400);
-        }
-
-      } else {
-        // if risk is low enough, show stable for a moment then idle
-        const th = Number($("threshold").value || 0.75);
-        if (risk < th * 0.75){
-          setAction("STABLE", `Telemetry stable (risk=${risk.toFixed(2)})`);
-          setTimeout(() => setAction("IDLE", "Standing by"), 1600);
-        }
       }
 
       addRow(evt);
@@ -855,10 +839,8 @@
     bindSlider("errorRate","errVal",(v)=>Number(v).toFixed(1));
     bindSlider("threshold","thVal",(v)=>Number(v).toFixed(2));
 
-    // Ensure threshold change updates gauge pulse immediately (even without new events)
     $("threshold").addEventListener("input", ()=> {
-      const current = Number($("riskText").textContent || 0);
-      setGauge(current);
+      updateGaugePulse(currentRisk);
     });
 
     function dispatchInput(id){
@@ -867,39 +849,32 @@
     }
 
     // ========= Send event =========
-    async function sendEvent(payload, opts = {}){
+    async function sendEvent(payload){
       const base = $("apiBase").value.replace(/\/+$/,"");
       const url = `${base}/api/risk-event`;
-      if (!opts.silent) $("lastResp").textContent = "Sending…";
+      $("lastResp").textContent = "Sending…";
 
-      const resp = await fetch(url, {
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload),
-        cache: "no-store",
-      });
+      try{
+        const resp = await fetch(url, {
+          method:"POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
 
-      const text = await resp.text();
-      let data = null;
-      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        const text = await resp.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
 
-      if (!opts.silent){
         $("lastResp").textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
-      } else if (opts.label){
-        $("lastResp").textContent = `${opts.label}\nHTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
-      }
 
-      if (data && typeof data === "object" && ("risk" in data)){
-        data.cloud = payload.cloud || activeCloud;
-        data.timestamp = data.timestamp || new Date().toISOString();
-        applyEvent(data);
+        if (data && typeof data === "object" && ("risk" in data)){
+          data.cloud = payload.cloud || activeCloud;
+          data.timestamp = data.timestamp || new Date().toISOString();
+          applyEvent(data);
+        }
+      } catch(e){
+        $("lastResp").textContent = `Error: ${e.message}`;
       }
-
-      if (!resp.ok){
-        throw new Error(`HTTP ${resp.status}`);
-      }
-
-      return data;
     }
 
     $("btnSend").addEventListener("click", ()=>{
@@ -911,9 +886,7 @@
         notes: $("notes").value.trim() || undefined,
         cloud: activeCloud
       };
-      sendEvent(payload).catch((e)=>{
-        $("lastResp").textContent = `Error: ${e.message}`;
-      });
+      sendEvent(payload);
     });
 
     $("btnSpike").addEventListener("click", ()=>{
@@ -932,48 +905,104 @@
       dispatchInput("errorRate");
     });
 
-    // ========= Stream (polling) =========
-    async function pollStreamOnce(){
-      const base = $("apiBase").value.replace(/\/+$/,"");
-      const url = `${base}/api/risk-stream?since=${latestSeq}`;
+    // ========= Chaos Drill =========
+    async function runChaosDrill(){
+      const rid = $("resourceId").value.trim() || "azure-webapp/prod-api";
+      const baseCloud = activeCloud;
+      const baseNote = "chaos drill";
 
-      const r = await fetch(url, { cache: "no-store" });
-      if (!r.ok) throw new Error(`Stream HTTP ${r.status}`);
-      const data = await r.json();
+      const phases = [
+        {
+          latency: 140,
+          errorRate: 0.3,
+          nxdomain: false,
+          msg: "Warm-up: healthy baseline"
+        },
+        {
+          latency: 650,
+          errorRate: 2.5,
+          nxdomain: false,
+          msg: "Degradation: latency climbing"
+        },
+        {
+          latency: 1200,
+          errorRate: 6.2,
+          nxdomain: true,
+          msg: "Incident: crossing redline, triggering auto-heal"
+        },
+        {
+          latency: 220,
+          errorRate: 0.4,
+          nxdomain: false,
+          msg: "Recovery: back to green"
+        }
+      ];
 
-      const events = data.events || [];
-      latestSeq = data.latestSeq || latestSeq;
-
-      for (const evt of events) {
-        evt.cloud = evt.cloud || activeCloud;
-        applyEvent(evt);
+      for (const phase of phases){
+        const payload = {
+          resourceId: rid,
+          latency: phase.latency,
+          errorRate: phase.errorRate,
+          nxdomainAnomaly: phase.nxdomain,
+          notes: `${baseNote} – ${phase.msg}`,
+          cloud: baseCloud
+        };
+        await sendEvent(payload);
+        await sleep(1200);
       }
     }
 
+    $("btnDrill").addEventListener("click", runChaosDrill);
+
+    // ========= Stream (polling) =========
+    async function pollOnce(){
+      const base = $("apiBase").value.replace(/\/+$/,"");
+      const url = `${base}/api/risk-stream?since=${lastSeq}`;
+
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      if (typeof data.latestSeq === "number") lastSeq = data.latestSeq;
+      const events = Array.isArray(data.events) ? data.events : [];
+
+      events.forEach(evt => {
+        evt.cloud = evt.cloud || activeCloud;
+        applyEvent(evt);
+      });
+    }
+
     function connectStream(){
-      if (pollTimer) clearInterval(pollTimer);
+      if (pollTimer){
+        clearInterval(pollTimer);
+        pollTimer = null;
+        $("streamPill").textContent = "DISCONNECTED";
+        $("streamPill").style.color = "var(--warn)";
+        return;
+      }
 
       $("streamPill").textContent = "CONNECTING…";
       $("streamPill").style.color = "var(--warn)";
 
-      // poll immediately, then every 1s
-      pollStreamOnce()
-        .then(() => {
+      // quick first poll to validate
+      pollOnce().then(()=>{
+        $("streamPill").textContent = "CONNECTED";
+        $("streamPill").style.color = "var(--good)";
+      }).catch(()=>{
+        $("streamPill").textContent = "DISCONNECTED";
+        $("streamPill").style.color = "var(--warn)";
+      });
+
+      pollTimer = setInterval(async ()=>{
+        try{
+          await pollOnce();
           $("streamPill").textContent = "CONNECTED";
           $("streamPill").style.color = "var(--good)";
-        })
-        .catch((e) => {
+        } catch {
           $("streamPill").textContent = "DISCONNECTED";
           $("streamPill").style.color = "var(--warn)";
-          $("lastResp").textContent = `Stream error: ${e.message}`;
-        });
-
-      pollTimer = setInterval(() => {
-        pollStreamOnce().catch(() => {
-          $("streamPill").textContent = "DISCONNECTED";
-          $("streamPill").style.color = "var(--warn)";
-        });
-      }, 1000);
+        }
+      }, 900);
     }
 
     $("btnConnect").addEventListener("click", connectStream);
@@ -983,22 +1012,18 @@
       $("rows").innerHTML = "";
       $("healLog").textContent = "No auto-heal yet.";
       $("lastResp").textContent = "Cleared.";
-      $("actionLog").textContent = "Last action: —";
       $("roResource").textContent = "—";
       $("roLatency").textContent = "—";
       $("roError").textContent = "—";
       $("roNx").textContent = "—";
       $("roHeal").textContent = "—";
-      latestSeq = 0;
-      lastHealKey = null;
-      setAction("IDLE", "Standing by");
-      setGauge(0);
+      lastSeq = 0;
+      setGaugeTarget(0);
     });
 
     // ========= Init =========
     document.getElementById("year").textContent = new Date().getFullYear().toString();
-    setAction("IDLE", "Standing by");
-    setGauge(0);
+    setGaugeTarget(0);
   </script>
 </body>
 </html>

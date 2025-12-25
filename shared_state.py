@@ -1,27 +1,29 @@
-# shared_state.py
 import threading
-import copy
+import time
 
 _lock = threading.Lock()
 _seq = 0
-_events = []  # list of dicts with "seq"
+_events = []  # list of dicts, each dict should include "seq"
 
-def push_event(evt: dict) -> int:
-    """Append an event and return its sequence number."""
-    global _seq
+
+def add_event(evt: dict) -> int:
+    global _seq, _events
     with _lock:
         _seq += 1
-        e = dict(evt or {})
-        e["seq"] = _seq
-        _events.append(e)
-        # cap memory
-        if len(_events) > 500:
-            del _events[:-500]
+        evt = dict(evt)
+        evt["seq"] = _seq
+        # Keep a timestamp if caller didn’t include one
+        evt.setdefault("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        _events.append(evt)
+
+        # cap memory so it doesn’t grow forever
+        if len(_events) > 400:
+            _events = _events[-400:]
         return _seq
 
+
 def get_events_since(since: int):
-    """Return (events_after_since, latest_seq)."""
     with _lock:
-        since = int(since or 0)
-        new_events = [e for e in _events if int(e.get("seq", 0)) > since]
-        return copy.deepcopy(new_events), _seq
+        new_events = [e for e in _events if int(e.get("seq", 0)) > int(since)]
+        latest = _seq
+        return new_events, latest
