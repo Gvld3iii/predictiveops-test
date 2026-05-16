@@ -1,0 +1,74 @@
+name: Deploy PredictiveOps to Azure Functions
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_NAME: predictiveops
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: "."
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
+      - name: Configure app settings
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az functionapp config appsettings set \
+              --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --settings \
+                COSMOS_URL="${{ secrets.COSMOS_URL }}" \
+                COSMOS_KEY="${{ secrets.COSMOS_KEY }}" \
+                COSMOS_DB="predictiveops" \
+                COSMOS_CONTAINER="riskEvents" \
+                RISK_THRESHOLD="0.75" \
+                WEBHOOK_RESTART="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/AutoHeal?code=${{ secrets.AUTOHEAL_FUNCTION_KEY }}" \
+                VERBOSE="false"
+
+      - name: Smoke test — RiskEngine health check
+        run: |
+          sleep 15
+          URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/RiskEngine"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$URL?code=${{ secrets.RISKENGINE_FUNCTION_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"resourceId":"ci-smoke-test","latency":90,"errorRate":0.05,"nxdomainAnomaly":false}')
+          echo "RiskEngine response: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Smoke test failed with status $RESPONSE"
+            exit 1
+          fi
+          echo "Smoke test passed."
